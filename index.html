@@ -1,0 +1,573 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <title>약속의 말씀: 내 마음에 쏙쏙</title>
+
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Gowun+Batang:wght@400;700&family=Noto+Serif+KR:wght@400;500;600;700;900&display=swap" rel="stylesheet" />
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          colors: {
+            themeBg: "#a595c8",
+            mainFont: "#3d2b29",
+            subFont: "#35293b",
+            cream: "#f2efea",
+            pointFont: "#2d3d2c",
+            brickRed: "#a34c44",
+          },
+          fontFamily: {
+            serif: ['"Gowun Batang"', "serif"],
+            classic: ['"Noto Serif KR"', "serif"],
+            sans: ["Pretendard", "ui-sans-serif", "system-ui", "-apple-system", "BlinkMacSystemFont", "sans-serif"],
+          },
+          animation: {
+            "fade-in": "fadeIn 0.6s ease-out forwards",
+          },
+          keyframes: {
+            fadeIn: { "0%": { opacity: "0" }, "100%": { opacity: "1" } },
+          },
+        },
+      },
+    };
+  </script>
+
+  <style>
+    :root { --themeBg:#a595c8; --mainFont:#3d2b29; }
+    body{
+      background-color:var(--themeBg);
+      color:var(--mainFont);
+      -webkit-font-smoothing:antialiased;
+      overscroll-behavior-y:none;
+      user-select:none;
+      overflow-x:hidden;
+    }
+    .glass-card{
+      background: rgba(255, 255, 255, 0.08);
+      backdrop-filter: blur(8px);
+      border: 0.5px solid rgba(255, 255, 255, 0.15);
+      box-shadow: 0 4px 24px -12px rgba(40, 30, 45, 0.1);
+    }
+    .list-item-shadow{ box-shadow: 0 2px 12px -4px rgba(40, 30, 45, 0.06); }
+    .break-keep{ word-break: keep-all; }
+    ::-webkit-scrollbar{ display:none; }
+
+    .btn-primary{
+      background: linear-gradient(135deg, #433647 0%, #35293b 100%);
+      color:#f2efea;
+      box-shadow: 0 8px 24px -6px rgba(40, 30, 45, 0.4);
+    }
+
+    h1,h2,h3{ font-family:"Noto Serif KR", serif; }
+    .bible-text{ font-family:"Gowun Batang", serif; }
+
+    /* 눌림 UX 유지 */
+    .is-pressing{
+      transform: translateY(1px) scale(0.985) !important;
+      filter: brightness(0.96) !important;
+      box-shadow: inset 0 1px 4px rgba(0,0,0,0.05) !important;
+    }
+    .clickable-element{
+      transition: transform 0.15s cubic-bezier(0.2, 0, 0, 1),
+                  filter 0.15s ease,
+                  box-shadow 0.15s ease;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    .screen{ display:none; }
+    .screen.active{ display:flex; flex-direction:column; }
+
+    .title-vivid{
+      text-shadow: 0 0.8px 1.5px rgba(0,0,0,0.12);
+      filter: contrast(1.11);
+    }
+
+    /* =========================
+       HOME: Garden (동시 모션)
+       - 랜덤/그룹/딜레이 전부 제거
+       - 전체 식물 "동시에" 아래에서 올라오며 부드럽게
+       - 새싹: 줄기 -> 잎 (내부 순서만 유지)
+       - 꽃: 줄기+꽃잎+중심 동시
+       - 타이틀/슬로건 ↔ 식물 여백 -2pt(추가) => 총 -4px 적용
+       - 도전하기 버튼 +2pt 위로(추가)
+       ========================= */
+    #garden-wrap{ width:100%; }
+    .garden{ width: min(420px, 96vw); height:auto; display:block; }
+
+    .garden .soil{
+      fill:none;
+      stroke: rgba(60, 42, 36, .10);
+      stroke-width: 4.6;
+      stroke-linecap: round;
+    }
+
+    .garden .stem, .garden .leaf, .garden .petal, .garden .center{
+      opacity:0;
+      will-change: transform, opacity;
+      transform: translate3d(0,0,0);
+    }
+
+    .garden .stem{
+      stroke: rgba(46, 98, 74, .86);
+      stroke-width: 2.9;
+      fill:none;
+      stroke-linecap: round;
+    }
+
+    .garden .leaf{
+      fill: var(--leaf-color);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .garden .petal{
+      fill: var(--petal-color);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+    .garden .center{
+      fill: rgba(248, 246, 242, .92);
+      transform-box: fill-box;
+      transform-origin: center;
+    }
+
+    /* 부드러운 이징(툭 끊김 방지) */
+    :root{
+      --easeSoft: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    /* ✅ 동시에 시작 */
+    #garden-wrap.play .sprout .stem{
+      animation: riseSoft 0.86s var(--easeSoft) 0s forwards;
+    }
+    /* 새싹 잎은 줄기 뒤에만 살짝 */
+    #garden-wrap.play .sprout .leaf{
+      animation: riseSoftSmall 0.78s var(--easeSoft) 0.18s forwards;
+    }
+
+    /* 꽃은 줄기/꽃잎/중심 모두 동시 */
+    #garden-wrap.play .flower .stem,
+    #garden-wrap.play .flower .petal,
+    #garden-wrap.play .flower .center{
+      animation: riseSoft 0.92s var(--easeSoft) 0s forwards;
+    }
+
+    @keyframes riseSoft{
+      0%   { opacity:0; transform: translate3d(0, 10px, 0); }
+      100% { opacity:1; transform: translate3d(0, 0px, 0); }
+    }
+    @keyframes riseSoftSmall{
+      0%   { opacity:0; transform: translate3d(0, 7px, 0); }
+      100% { opacity:1; transform: translate3d(0, 0px, 0); }
+    }
+  </style>
+<script type="importmap">
+{
+  "imports": {
+    "react-dom/": "https://esm.sh/react-dom@^19.2.3/",
+    "react/": "https://esm.sh/react@^19.2.3/",
+    "react": "https://esm.sh/react@^19.2.3",
+    "lucide-react": "https://esm.sh/lucide-react@^0.562.0"
+  }
+}
+</script>
+</head>
+
+<body class="font-sans">
+  <div id="app-container" class="min-h-screen w-full flex flex-col items-center relative">
+    <div class="absolute inset-0 opacity-[0.05] pointer-events-none"
+         style="background-image: radial-gradient(#432d4c 1px, transparent 1px); background-size: 32px 32px;"></div>
+
+    <div class="w-full max-w-[430px] flex-1 flex flex-col px-5 pt-[calc(env(safe-area-inset-top)+20px)] pb-[calc(env(safe-area-inset-bottom)+20px)] z-10 mx-auto">
+
+      <!-- 1. Intro Screen -->
+      <section id="screen-intro" class="screen active animate-fade-in items-center relative w-full flex-1">
+
+        <!-- 타이틀+슬로건 블록 -->
+        <div class="flex flex-col items-center text-center w-full" style="margin-top: calc(1.5rem + 19px);">
+          <h1 class="text-[2.95rem] font-classic font-black text-mainFont tracking-tighter leading-[1.38] title-vivid">
+            <span>약속의 말씀</span><br />
+            <span class="text-subFont">내 마음에 쏙쏙</span>
+          </h1>
+
+          <div class="relative px-4 mt-10 space-y-3">
+            <p class="text-[16px] font-serif font-bold text-mainFont/75 tracking-tight leading-relaxed break-keep">
+              "그리스도인의 말씀이 너희 속에 풍성히 거하여"
+            </p>
+            <span class="text-[16px] font-serif font-bold text-mainFont/75 tracking-tight">- 골로새서 3:16 -</span>
+          </div>
+        </div>
+
+        <!-- HOME Garden (타이틀/슬로건과 간격 추가로 -2pt => 총 -4px) -->
+        <div class="w-full flex justify-center items-center mt-10" id="garden-wrap" aria-hidden="true"
+             style="margin-top: calc(2.5rem - 4px);">
+          <svg class="garden" viewBox="-30 -25 460 265" aria-hidden="true">
+            <!-- 흙선 -->
+            <path class="soil" d="M18 210 C92 184, 146 236, 200 210 C254 184, 316 236, 382 210"></path>
+
+            <!-- ===== BACK ROW (10) ===== -->
+            <g class="plant sprout" style="--leaf-color:#8FAEA3;" transform="translate(16, 12)">
+              <path class="stem" d="M0 150 L0 108"></path>
+              <ellipse class="leaf" cx="-11" cy="112" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="110" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#AFCFE6;" transform="translate(56, 9)">
+              <path class="stem" d="M0 150 L0 86"></path>
+              <g transform="translate(0,84)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#7C9A8D;" transform="translate(96, 15)">
+              <path class="stem" d="M0 150 L0 108"></path>
+              <ellipse class="leaf" cx="-11" cy="112" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="110" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#C2B4D6;" transform="translate(136, 9)">
+              <path class="stem" d="M0 150 L0 86"></path>
+              <g transform="translate(0,84)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#95A88A;" transform="translate(176, 16)">
+              <path class="stem" d="M0 150 L0 108"></path>
+              <ellipse class="leaf" cx="-11" cy="112" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="110" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#BFE3D3;" transform="translate(216, 9)">
+              <path class="stem" d="M0 150 L0 86"></path>
+              <g transform="translate(0,84)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#86A39A;" transform="translate(256, 14)">
+              <path class="stem" d="M0 150 L0 108"></path>
+              <ellipse class="leaf" cx="-11" cy="112" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="110" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#F0B8C6;" transform="translate(296, 9)">
+              <path class="stem" d="M0 150 L0 86"></path>
+              <g transform="translate(0,84)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#93B09A;" transform="translate(336, 16)">
+              <path class="stem" d="M0 150 L0 108"></path>
+              <ellipse class="leaf" cx="-11" cy="112" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="110" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#E6DFA3;" transform="translate(376, 9)">
+              <path class="stem" d="M0 150 L0 86"></path>
+              <g transform="translate(0,84)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <!-- ===== FRONT ROW (10) ===== -->
+            <g class="plant flower" style="--petal-color:#F2D3A7;" transform="translate(6, 43)">
+              <path class="stem" d="M0 150 L0 102"></path>
+              <g transform="translate(0,100)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#7C9A76;" transform="translate(46, 46)">
+              <path class="stem" d="M0 150 L0 106"></path>
+              <ellipse class="leaf" cx="-11" cy="110" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="108" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#C7E2C9;" transform="translate(86, 40)">
+              <path class="stem" d="M0 150 L0 102"></path>
+              <g transform="translate(0,100)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#89A7A0;" transform="translate(126, 46)">
+              <path class="stem" d="M0 150 L0 106"></path>
+              <ellipse class="leaf" cx="-11" cy="110" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="108" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#D7C7F2;" transform="translate(166, 43)">
+              <path class="stem" d="M0 150 L0 102"></path>
+              <g transform="translate(0,100)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#9BB0A4;" transform="translate(206, 46)">
+              <path class="stem" d="M0 150 L0 106"></path>
+              <ellipse class="leaf" cx="-11" cy="110" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="108" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#E3B5A4;" transform="translate(246, 40)">
+              <path class="stem" d="M0 150 L0 102"></path>
+              <g transform="translate(0,100)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#86A39A;" transform="translate(286, 46)">
+              <path class="stem" d="M0 150 L0 106"></path>
+              <ellipse class="leaf" cx="-11" cy="110" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="108" rx="11" ry="6.2"></ellipse>
+            </g>
+
+            <g class="plant flower" style="--petal-color:#F0B0D4;" transform="translate(326, 43)">
+              <path class="stem" d="M0 150 L0 102"></path>
+              <g transform="translate(0,100)">
+                <ellipse class="petal" cx="0"     cy="-15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="-6.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="12.6"  cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="0"     cy="15.2" rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="6.2"  rx="10.3" ry="8.0"/>
+                <ellipse class="petal" cx="-12.6" cy="-6.2" rx="10.3" ry="8.0"/>
+                <circle class="center" cx="0" cy="0" r="6.7"/>
+              </g>
+            </g>
+
+            <g class="plant sprout" style="--leaf-color:#93B09A;" transform="translate(366, 46)">
+              <path class="stem" d="M0 150 L0 106"></path>
+              <ellipse class="leaf" cx="-11" cy="110" rx="11" ry="6.2"></ellipse>
+              <ellipse class="leaf" cx="11"  cy="108" rx="11" ry="6.2"></ellipse>
+            </g>
+          </svg>
+        </div>
+
+        <!-- Button: 2pt 위로(추가) => 총 -3px -->
+        <div class="mt-24 flex justify-center w-full" style="margin-top: calc(6rem - 3px);">
+          <button class="clickable-action clickable-element group glass-card px-12 py-4 rounded-[1.8rem] flex items-center justify-center text-center relative overflow-hidden list-item-shadow border-white/10"
+                  data-next="screen-topics">
+            <span class="text-[20px] font-classic font-bold text-mainFont tracking-tight">도전하기</span>
+          </button>
+        </div>
+
+      </section>
+
+      <!-- 2. Topics Screen -->
+      <section id="screen-topics" class="screen h-full w-full overflow-x-hidden">
+        <div class="pt-2 pb-8 flex flex-col items-center relative w-full">
+          <button class="nav-back clickable-element absolute left-0 top-0 flex items-center space-x-1 text-mainFont/40 py-3 px-1" data-to="screen-intro">
+            <i data-lucide="chevron-left" size="18"></i>
+            <span class="text-[13px] font-sans font-bold tracking-widest">돌아가기</span>
+          </button>
+          <div class="pt-14 w-full text-center">
+            <h2 class="text-[23px] font-classic font-bold text-mainFont/95 uppercase tracking-[0.08em]">
+              <span class="text-mainFont/25 mr-2">[</span>암송 주제 선택하기<span class="text-mainFont/25 ml-2">]</span>
+            </h2>
+          </div>
+        </div>
+        <div id="topic-list" class="mt-2 flex-1 w-full flex flex-col space-y-4"></div>
+        <footer class="mt-16 pb-10 text-center opacity-40">
+          <p class="text-[10px] font-sans text-mainFont uppercase tracking-[0.4em] font-black">Faith & Promise • On-Sesang Ministry</p>
+        </footer>
+      </section>
+
+      <!-- 3. Study Screen (그림/애니메이션 추가 금지) -->
+      <section id="screen-study" class="screen w-full h-full animate-fade-in"></section>
+    </div>
+  </div>
+
+  <script>
+    const BIBLE_VERSES = [
+      { id: "salvation", topic: "구원의 확신", reference: "요한일서 5:11-12", content: "또 증거는 이것이니\n하나님이 우리에게\n영생을 주신 것과\n이 생명이 그의 아들 안에\n있는 그것이니라\n아들이 있는 자에게는\n생명이 있고\n하나님의 아들이\n없는 자에게는\n생명이 없느니라", description: "영원한 생명의 약속" },
+      { id: "prayer", topic: "기도 응답의 확신", reference: "요한복음 16:24", content: "지금까지는 너희가\n내 이름으로\n아무 것도 구하지\n아니하였으나\n구하라 그리하면 받으리니\n너희 기쁨이 충만하리라", description: "예수님의 이름으로 구하는 기쁨" },
+      { id: "victory", topic: "승리의 확신", reference: "고린도전서 10:13", content: "사람이 감당할\n시험 밖에는\n너희가 당한 것이 없나니\n오직 하나님은 미쁘사\n너희가 감당하지 못할\n시험 당함을\n허락하지 아니하시고\n시험 당할 즈음에\n또한 피할 길을 내사\n너희로 능히\n감당하게 하시느니라", description: "피할 길을 내시는 하나님" },
+      { id: "forgiveness", topic: "사죄의 확신", reference: "요한일서 1:9", content: "만일 우리가\n우리 죄를 자백하면\n그는 미쁘시고 의로우사\n우리 죄를 사하시며\n우리를 모든 불의에서\n깨끗하게 하실 것이요", description: "사죄와 정결의 은혜" },
+      { id: "guidance", topic: "인도의 확신", reference: "잠언 3:5-6", content: "너는 마음을 다하여\n여호와를 신뢰하고\n네 명철을\n의지하지 말라\n너는 범사에 그를 인정하라\n그리하면 네 길을\n지도하시리라", description: "길을 지도하시리라" }
+    ];
+
+    let currentVerse = null;
+
+    function performAction(element, callback) {
+      if (element.classList.contains("is-pressing")) return;
+      element.classList.add("is-pressing");
+      setTimeout(() => {
+        element.classList.remove("is-pressing");
+        setTimeout(() => callback(), 85);
+      }, 120);
+    }
+
+    function navigateTo(screenId) {
+      document.querySelectorAll(".screen").forEach(s => s.classList.remove("active"));
+      const target = document.getElementById(screenId);
+      if (target) {
+        target.classList.add("active");
+        window.scrollTo(0, 0);
+        lucide.createIcons();
+        if (screenId === "screen-intro") restartGardenAnim();
+      }
+    }
+
+    function initNavigation() {
+      document.querySelectorAll(".clickable-action").forEach(btn => {
+        btn.addEventListener("click", function () {
+          const next = this.getAttribute("data-next");
+          performAction(this, () => navigateTo(next));
+        });
+      });
+
+      document.querySelectorAll(".nav-back").forEach(btn => {
+        btn.addEventListener("click", function () {
+          const to = this.getAttribute("data-to");
+          if (to) performAction(this, () => navigateTo(to));
+        });
+      });
+    }
+
+    function initTopics() {
+      const list = document.getElementById("topic-list");
+      if (!list) return;
+      list.innerHTML = "";
+
+      BIBLE_VERSES.forEach((verse, index) => {
+        const card = document.createElement("button");
+        card.className =
+          "topic-card clickable-element w-full group glass-card p-6 rounded-[2.2rem] flex items-center justify-between text-left relative overflow-hidden list-item-shadow border-white/10";
+        card.innerHTML = `
+          <div class="flex items-center space-x-6 relative z-10 flex-1">
+            <span class="text-[20px] font-classic font-black text-mainFont/45 tabular-nums tracking-tight transition-colors">0${index + 1}</span>
+            <div class="flex flex-col overflow-hidden">
+              <h3 class="text-[22px] font-classic font-bold text-mainFont tracking-tight transition-colors truncate">${verse.topic}</h3>
+              <p class="text-[13px] text-mainFont/40 font-sans font-bold tracking-wider uppercase mt-0.5">${verse.reference}</p>
+            </div>
+          </div>
+          <div class="bg-white/15 p-3 rounded-full flex-shrink-0 border border-white/20">
+            <i data-lucide="chevron-right" class="text-mainFont/30" size="18"></i>
+          </div>
+        `;
+
+        card.addEventListener("click", function () {
+          performAction(this, () => {
+            currentVerse = verse;
+            renderStudy();
+            navigateTo("screen-study");
+          });
+        });
+
+        list.appendChild(card);
+      });
+    }
+
+    function renderStudy() {
+      const study = document.getElementById("screen-study");
+      if (!study) return;
+
+      study.innerHTML = `
+        <div class="mb-4">
+          <button class="nav-back clickable-element flex items-center space-x-1 text-mainFont/40 py-3 px-1" onclick="performAction(this, () => navigateTo('screen-topics'))">
+            <i data-lucide="chevron-left" size="18"></i>
+            <span class="text-[13px] font-sans font-bold tracking-widest">돌아가기</span>
+          </button>
+        </div>
+        <div class="flex-1 flex flex-col">
+          <div class="text-center mb-10">
+            <div class="inline-flex items-center justify-center space-x-3 bg-white/10 px-8 py-3 rounded-full border border-mainFont/10 mb-6">
+              <i data-lucide="bookmark" size="14" class="text-mainFont/30"></i>
+              <span class="text-[12px] font-sans font-black text-mainFont/60 uppercase tracking-[0.25em]">STEP 01. 마음으로 읽기</span>
+            </div>
+            <h2 class="text-[30px] font-classic font-bold text-mainFont tracking-tight">${currentVerse.topic}</h2>
+          </div>
+          <div class="relative p-10 bg-white/25 rounded-[3.5rem] border border-white/40 shadow-2xl flex flex-col justify-center items-center min-h-[440px]">
+            <p class="text-[1.7rem] font-serif font-bold leading-[1.9] text-mainFont whitespace-pre-line text-center break-keep">
+              ${currentVerse.content}
+            </p>
+            <p class="mt-10 text-[17px] font-serif font-bold text-mainFont/40 italic">${currentVerse.reference}</p>
+          </div>
+        </div>
+        <div class="mt-12 pb-8">
+          <button class="clickable-element w-full btn-primary py-6 rounded-[2rem] flex items-center justify-center space-x-3" onclick="performAction(this, () => alert('퀴즈 기능은 준비 중입니다.'))">
+            <i data-lucide="play" size="20" class="fill-cream"></i>
+            <span class="text-[20px] tracking-tight font-black">암송 퀴즈 시작</span>
+          </button>
+        </div>
+      `;
+      lucide.createIcons();
+    }
+
+    function restartGardenAnim() {
+      const wrap = document.getElementById("garden-wrap");
+      if (!wrap) return;
+      wrap.classList.remove("play");
+      void wrap.offsetWidth; // reflow
+      wrap.classList.add("play");
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      initTopics();
+      initNavigation();
+      lucide.createIcons();
+      restartGardenAnim();
+    });
+  </script>
+</body>
+</html>
